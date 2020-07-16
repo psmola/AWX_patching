@@ -5,8 +5,9 @@
 
 # Include debug information
 awx-patching_debug: false
+# Define patching target version of AWX: v11 AWX 11.2, v92 AWX 9.2 
+awx_ansible_version: 'v11'
 
-# This role repository URL
 awx_install_home: '/var/lib/awx'
 
 awx_required_os_packages_awx_local:
