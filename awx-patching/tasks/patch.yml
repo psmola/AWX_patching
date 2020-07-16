@@ -1,0 +1,262 @@
+---
+
+- name: AWX unlock all versiolock packages
+  shell: yum versionlock clear
+  tags:
+    - awx_patching
+
+- name: Refresh yum cache
+  yum:
+    update_cache: yes
+  tags:
+    - awx_patching
+
+- name: Install OS packages
+  yum:
+    name: "redis,pwgen,python36-rpm,python3-virtualenv"
+    state: latest
+  tags:
+    - awx_patching
+  when: "awx_ansible_version == 'v11'"
+
+- name: Remove packages in conflict with AWX 11
+  yum:
+    name: "rh-python36-cryptography-debuginfo-2.8-1.x86_64"
+    state: absent
+  tags:
+    - awx_patching
+  when: "awx_ansible_version == 'v11'"
+  
+- name: Remove problematic rpm package python-setuptools
+  shell: rpm -e --nodeps python-setuptools-0.9.8-7.el7
+  when: "awx_ansible_version == 'v11'"
+  ignore_errors: yes
+  tags:
+    - awx_patching
+
+- name: Check if ansible-awx is to update
+  yum:
+    name: "ansible-awx"
+    state: latest
+    update_only: yes
+    download_only: yes
+    disablerepo: "*"
+    enablerepo: "awx_local"
+  register: _awx_package_update_out
+  tags:
+    - awx_patching
+
+- name: Install all packages from awx_local
+  yum:
+    name: "{{ awx_required_os_packages_awx_local[ awx_ansible_version ] }}"
+    state: latest
+    disablerepo: "*"
+    enablerepo: "awx_local"
+    exclude: 'rh-postgresql10,sqlite-doc,ansible-awx'
+  tags:
+    - awx_patching
+
+- name: Ensure awx is stopped
+  systemd:
+    name: awx
+    state: stopped
+  when: _awx_package_update_out.changed == true
+  tags:
+    - awx_patching
+
+- name: Update ansible-awx
+  yum:
+    name: "ansible-awx"
+    state: latest
+    update_only: yes
+    disablerepo: "*"
+    enablerepo: "awx_local"
+  register: _awx_package_update_install_awx_out
+  when: _awx_package_update_out.changed == true
+  tags:
+    - awx_patching
+
+- name: Update all packages from awx_local
+  yum:
+    name: "*"
+    state: latest
+    update_only: yes
+    disablerepo: "*"
+    enablerepo: "awx_local"
+  register: _awx_package_update_install_debug_info_out
+  when: _awx_package_update_out.changed == true
+  tags:
+    - awx_patching
+
+- name: Install AWX's settings file
+  template:
+    dest: /etc/tower/settings.py
+    force: yes
+    backup: yes
+    src: settings.py.j2
+    mode: '0640'
+    owner: root
+    group: awx
+  notify:
+    - Restart nginx.
+    - Restart awx.
+  tags:
+    - awx_patching
+
+- name: AWX patching makemigrations
+  shell: |
+    echo
+    sudo -u awx scl enable rh-python36 rh-postgresql10 rh-git29 "GIT_PYTHON_REFRESH=quiet awx-manage makemigrations"
+    echo
+  register: _awx_patch_makemigrations
+  when: _awx_package_update_out.changed == true
+  become_user: "{{ ansible_user }}"
+  tags:
+    - awx_patching
+    - awx_patching_migration
+
+- debug:
+    var: _awx_patch_makemigrations
+  when: _awx_package_update_out.changed == true
+  tags:
+    - awx_patching
+    - awx_patching_migration
+
+- name: AWX patching migrate
+  shell: |
+    echo
+    sudo -u awx scl enable rh-python36 rh-postgresql10 rh-git29 "GIT_PYTHON_REFRESH=quiet awx-manage migrate -v 3"
+    echo
+  register: _awx_patch_migrate
+  when: _awx_package_update_out.changed == true
+  become_user: "{{ ansible_user }}"
+  tags:
+    - awx_patching
+    - awx_patching_migration
+
+- debug:
+    var: _awx_patch_migrate
+  when: _awx_package_update_out.changed == true
+  tags:
+    - awx_patching
+    - awx_patching_migration
+
+- name: Create Python enviroment
+  shell: awx-create-venv -f
+  when: "awx_ansible_version == 'v11'"
+  tags:
+    - awx_patching
+    - awx_patching_venv
+
+- name: Configure AWX service requirments
+  lineinfile:
+    path: /usr/lib/systemd/system/awx.service
+    regexp: '^Requires'
+    line: Requires=awx-cbreceiver.service awx-daphne.service awx-dispatcher.service awx-channels-worker.service awx-web.service nginx.service memcached.service rabbitmq-server.service
+  when: inventory_hostname not in groups['pg'] and _awx_package_update_out.changed == true
+  tags:
+    - awx_patching_service
+    - awx_patching
+
+- name: Copy awx-web.service file
+  copy:
+    src: "awx-web.service_{{ awx_ansible_version }}"
+    dest: /usr/lib/systemd/system/awx-web.service
+    owner: root
+    group: root
+    mode: '0644'
+    backup: no
+    force: yes
+  when: _awx_package_update_out.changed == true
+  tags:
+    - awx_patching_service
+    - awx_patching
+
+- name: Copy awx-daphne.service file
+  copy:
+    src: "awx-daphne.service_{{ awx_ansible_version }}"
+    dest: /usr/lib/systemd/system/awx-daphne.service
+    owner: root
+    group: root
+    mode: '0644'
+    backup: no
+    force: yes
+  when: _awx_package_update_out.changed == true
+  tags:
+    - awx_patching_service
+    - awx_patching
+
+- name: Copy favicon.ico
+  copy:
+    src: favicon.ico
+    dest: '/opt/awx/static/assets/favicon.ico'
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - awx_patching_logo
+    - awx_patching
+
+    
+- name: Create a symbolic link to virtualenv
+  file:
+    src: /usr/bin/virtualenv-3
+    dest: /usr/bin/virtualenv
+    owner: root
+    group: root
+    state: link
+  tags:
+    - awx_settings
+  when: "awx_ansible_version == 'v11'"
+
+- name: Remove RabbitMQ configuration for AWX 11
+  file:
+    path: /etc/tower/conf.d/rabbitmq.py
+    state: absent
+  tags:
+    - awx_settings
+  when: "awx_ansible_version == 'v11'"
+
+- name: Ensure RabbitMQ is stopped
+  systemd:
+    name: rabbitmq-server
+    state: stopped
+    enabled: no
+  when: "awx_ansible_version == 'v11'"
+  tags:
+    - awx_patching
+    - awx_rabbitmq
+
+- import_tasks: redis.yml
+  tags:
+    - awx_patching
+    - awx_redis
+  when: "awx_ansible_version == 'v11'"
+
+- name: Remove Channels configuration for AWX 11
+  file:
+    path: /etc/tower/conf.d/channels.py
+    state: absent
+  tags:
+    - awx_settings
+  when: "awx_ansible_version == 'v11'"
+
+- name: Ensure AWX is started
+  systemd:
+    name: awx
+    state: started
+    daemon_reload: yes
+  tags:
+    - awx_patching
+
+- name: Version lock ansible-awx
+  shell: yum versionlock ansible-awx
+  tags:
+    - awx_patching
+    - awx_patching_lock
+
+- name: Version lock  package python36-future-0.16.0-8.1.noarch
+  shell: yum versionlock python36-future-0.16.0-8.1.noarch
+  tags:
+    - awx_patching
+    - awx_patching_lock

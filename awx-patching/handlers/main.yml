@@ -1,0 +1,25 @@
+---
+# handlers file for awx-patching
+- name: Reload nginx.
+  systemd:
+    name: nginx
+    state: reloaded
+  tags:
+    - awx_nginx
+
+- name: Restart nginx.
+  systemd:
+    name: nginx
+    state: restarted
+  tags:
+    - awx_nginx
+
+- name: Restart awx.
+  systemd:
+    name: awx
+    state: restarted
+
+- name: Restart redis.
+  systemd:
+    name: redis
+    state: restarted

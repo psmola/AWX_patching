@@ -1,0 +1,4 @@
+---
+# vars file for awx-patching
+
+# Use 'awx-patching_' prefix for all variables

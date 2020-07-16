@@ -1,0 +1,9 @@
+---
+- name: Converge
+  hosts: all
+  vars:
+    - awx-patching_deployment_users_home: /root
+    - awx-patching_testing_provider: lxd
+
+  roles:
+    - awx-patching

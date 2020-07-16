@@ -1,0 +1,9 @@
+---
+
+- import_tasks: preflight.yml
+  tags:
+    - awx_patching
+
+- import_tasks: patch.yml
+  tags:
+    - awx_patching
