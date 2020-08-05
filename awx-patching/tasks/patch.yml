@@ -158,33 +158,33 @@
 #    - awx_patching_service
 #    - awx_patching
 
-- name: Copy awx-web.service file
-  copy:
-    src: "awx-web.service_{{ awx_ansible_version }}"
-    dest: /usr/lib/systemd/system/awx-web.service
-    owner: root
-    group: root
-    mode: '0644'
-    backup: no
-    force: yes
-  when: _awx_package_update_out.changed == true
-  tags:
-    - awx_patching_service
-    - awx_patching
-
-- name: Copy awx-daphne.service file
-  copy:
-    src: "awx-daphne.service_{{ awx_ansible_version }}"
-    dest: /usr/lib/systemd/system/awx-daphne.service
-    owner: root
-    group: root
-    mode: '0644'
-    backup: no
-    force: yes
-  when: _awx_package_update_out.changed == true
-  tags:
-    - awx_patching_service
-    - awx_patching
+#- name: Copy awx-web.service file
+#  copy:
+#    src: "awx-web.service_{{ awx_ansible_version }}"
+#    dest: /usr/lib/systemd/system/awx-web.service
+#    owner: root
+#    group: root
+#    mode: '0644'
+#    backup: no
+#    force: yes
+#  when: _awx_package_update_out.changed == true
+#  tags:
+#    - awx_patching_service
+#    - awx_patching
+#
+#- name: Copy awx-daphne.service file
+#  copy:
+#    src: "awx-daphne.service_{{ awx_ansible_version }}"
+#    dest: /usr/lib/systemd/system/awx-daphne.service
+#    owner: root
+#    group: root
+#    mode: '0644'
+#    backup: no
+#    force: yes
+#  when: _awx_package_update_out.changed == true
+#  tags:
+#    - awx_patching_service
+#    - awx_patching
 
 - name: Copy favicon.ico
   copy:
