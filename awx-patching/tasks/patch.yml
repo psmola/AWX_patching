@@ -148,43 +148,43 @@
     - awx_patching
     - awx_patching_venv
 
-#- name: Configure AWX service requirments
-#  lineinfile:
-#    path: /usr/lib/systemd/system/awx.service
-#    regexp: '^Requires'
-#    line: Requires=awx-cbreceiver.service awx-daphne.service awx-dispatcher.service awx-channels-worker.service awx-web.service nginx.service memcached.service rabbitmq-server.service
-#  when: inventory_hostname not in groups['pg'] and _awx_package_update_out.changed == true
-#  tags:
-#    - awx_patching_service
-#    - awx_patching
+- name: Configure AWX service requirments
+  lineinfile:
+    path: /usr/lib/systemd/system/awx.service
+    regexp: '^Requires'
+    line: "{% if awx_ansible_version == 'v92' %}Requires=awx-cbreceiver.service awx-daphne.service awx-dispatcher.service awx-channels-worker.service awx-web.service nginx.service memcached.service rabbitmq-server.service{% else %}Requires=awx-cbreceiver.service awx-daphne.service awx-dispatcher.service awx-channels-worker.service awx-web.service nginx.service{% endif %}"
+  when: inventory_hostname not in groups['pg'] and _awx_package_update_out.changed == true
+  tags:
+    - awx_patching_service
+    - awx_patching
 
-#- name: Copy awx-web.service file
-#  copy:
-#    src: "awx-web.service_{{ awx_ansible_version }}"
-#    dest: /usr/lib/systemd/system/awx-web.service
-#    owner: root
-#    group: root
-#    mode: '0644'
-#    backup: no
-#    force: yes
-#  when: _awx_package_update_out.changed == true
-#  tags:
-#    - awx_patching_service
-#    - awx_patching
-#
-#- name: Copy awx-daphne.service file
-#  copy:
-#    src: "awx-daphne.service_{{ awx_ansible_version }}"
-#    dest: /usr/lib/systemd/system/awx-daphne.service
-#    owner: root
-#    group: root
-#    mode: '0644'
-#    backup: no
-#    force: yes
-#  when: _awx_package_update_out.changed == true
-#  tags:
-#    - awx_patching_service
-#    - awx_patching
+- name: Copy awx-web.service file
+  copy:
+    src: "awx-web.service_{{ awx_ansible_version }}"
+    dest: /usr/lib/systemd/system/awx-web.service
+    owner: root
+    group: root
+    mode: '0644'
+    backup: no
+    force: yes
+  when: _awx_package_update_out.changed == true
+  tags:
+    - awx_patching_service
+    - awx_patching
+
+- name: Copy awx-daphne.service file
+  copy:
+    src: "awx-daphne.service_{{ awx_ansible_version }}"
+    dest: /usr/lib/systemd/system/awx-daphne.service
+    owner: root
+    group: root
+    mode: '0644'
+    backup: no
+    force: yes
+  when: _awx_package_update_out.changed == true
+  tags:
+    - awx_patching_service
+    - awx_patching
 
 - name: Copy favicon.ico
   copy:
