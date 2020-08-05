@@ -189,7 +189,7 @@
 - name: Copy favicon.ico
   copy:
     src: favicon.ico
-    dest: '/opt/awx/static/assets/favicon.ico'
+    dest: "{% if awx_ansible_version == 'v92' %}/opt/awx/static/assets/favicon.ico{% else %}/var/lib/awx/public/static/favicon.ico{% endif %}"
     owner: root
     group: root
     mode: '0755'
